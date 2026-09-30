@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mi Tienda</title>
+
+<!-- PWA: pantalla completa al "Añadir a la pantalla de inicio" -->
+<meta name="theme-color" content="#1f6b48">
+<meta name="application-name" content="Mi Tienda">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi Tienda">
+<meta name="format-detection" content="telephone=no">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Registro diario de caja, gastos y proveedores">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231f6b48'/%3E%3Ctext x='50' y='68' font-size='58' text-anchor='middle'%3E🏪%3C/text%3E%3C/svg%3E">
+
+<!-- Atkinson Hyperlegible: tipografía diseñada para máxima legibilidad -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    /* Paleta */
+    --verde:#1f6b48;   --verde-osc:#134a31;  --verde-cl:#e3f2e9;
+    --azul:#1b6ca3;    --azul-osc:#124e77;   --azul-cl:#e2eff8;
+    --teal:#0c7a83;    --teal-osc:#085860;   --teal-cl:#dff2f3;
+    --marino:#2a58a0;  --marino-osc:#1c3f78; --marino-cl:#e4ebf8;
+
+    --texto:#17281f;   --suave:#54655b;      --fondo:#f2f7f4;
+    --borde:#bfd2c6;   --papel:#ffffff;
+    --ok:#1f6b48;      --error:#b3261e;      --ambar:#8a5a00;   --ambar-cl:#fff1cf;
+
+    /* Color de acento por módulo (se redefine en cada vista) */
+    --accent:var(--verde); --accent-osc:var(--verde-osc); --accent-cl:var(--verde-cl);
+
+    --nav-h:78px;
+    --seguro-sup:env(safe-area-inset-top, 0px);
+    --seguro-inf:env(safe-area-inset-bottom, 0px);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--fondo); color:var(--texto);
+    font-family:'Atkinson Hyperlegible', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    font-size:1.2rem; line-height:1.45;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+    overscroll-behavior-y:contain;
+  }
+  body.bloqueado{overflow:hidden}
+  body.bloqueado main, body.bloqueado .nav, body.bloqueado .app-header{visibility:hidden}
+  button, input, select{font-family:inherit}
+  [hidden]{display:none !important}
+
+  /* ---------- Encabezado ---------- */
+  .app-header{
+    position:sticky; top:0; z-index:20;
+    background:var(--verde); color:#fff;
+    padding:calc(var(--seguro-sup) + 12px) 18px 14px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    border-bottom:4px solid var(--verde-osc);
+  }
+  .app-header h1{margin:0; font-size:1.55rem; line-height:1.15; font-weight:700}
+  .app-header .hoy{margin:2px 0 0; font-size:1rem; opacity:.92}
+  .btn-bloquear{
+    flex:none; width:56px; height:56px; border-radius:16px; border:2px solid rgba(255,255,255,.55);
+    background:rgba(255,255,255,.12); color:#fff; font-size:1.6rem; cursor:pointer;
+  }
+  .btn-bloquear:active{background:rgba(255,255,255,.3)}
+
+  /* ---------- Contenido ---------- */
+  main{
+    max-width:640px; margin:0 auto;
+    padding:20px 16px calc(var(--nav-h) + var(--seguro-inf) + 30px);
+  }
+  .view{animation:entra .22s ease-out}
+  @keyframes entra{from{opacity:0} to{opacity:1}}
+
+  .titulo-vista{display:flex; align-items:center; gap:14px; margin:0 0 18px}
+  .titulo-vista .ico{
+    flex:none; width:64px; height:64px; border-radius:20px; background:var(--accent-cl);
+    display:flex; align-items:center; justify-content:center; font-size:2.2rem;
+  }
+  .titulo-vista h2{margin:0; font-size:1.7rem; line-height:1.15; color:var(--accent-osc)}
+  .titulo-vista p{margin:2px 0 0; color:var(--suave); font-size:1.05rem}
+
+  .view[data-acento="verde"]{--accent:var(--verde); --accent-osc:var(--verde-osc); --accent-cl:var(--verde-cl)}
+  .view[data-acento="azul"]{--accent:var(--azul); --accent-osc:var(--azul-osc); --accent-cl:var(--azul-cl)}
+  .view[data-acento="teal"]{--accent:var(--teal); --accent-osc:var(--teal-osc); --accent-cl:var(--teal-cl)}
+  .view[data-acento="marino"]{--accent:var(--marino); --accent-osc:var(--marino-osc); --accent-cl:var(--marino-cl)}
+
+  /* ---------- Formularios ---------- */
+  .hoja{
+    background:var(--papel); border:2px solid var(--borde); border-radius:22px;
+    padding:22px 18px 24px;
+  }
+  .campo{margin-bottom:22px}
+  .campo label{display:block; font-weight:700; font-size:1.2rem; margin-bottom:8px}
+  .campo input, .campo select{
+    width:100%; min-height:66px; padding:0 16px;
+    font-size:1.45rem; color:var(--texto); background:#fff;
+    border:3px solid var(--borde); border-radius:14px; outline:none;
+  }
+  .campo input::placeholder{color:#93a599}
+  .campo input:focus, .campo select:focus{border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-cl)}
+  .campo.invalido input, .campo.invalido select{border-color:var(--error); background:#fdf1f0}
+  .msg-error{display:none; color:var(--error); font-weight:700; font-size:1.05rem; margin-top:6px}
+  .campo.invalido .msg-error{display:block}
+
+  .moneda{position:relative}
+  .moneda > span{
+    position:absolute; left:16px; top:50%; transform:translateY(-50%);
+    font-weight:700; font-size:1.25rem; color:var(--suave); pointer-events:none;
+  }
+  .moneda input{padding-left:60px}
+
+  input[type=number]{-moz-appearance:textfield; appearance:textfield}
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+  input[type=date]{display:block; -webkit-appearance:none; appearance:none; text-align:left}
+  input[type=date]::-webkit-date-and-time-value{text-align:left}
+
+  .campo select{
+    -webkit-appearance:none; appearance:none; padding-right:56px;
+    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='%2354655b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 16px center;
+  }
+
+  /* ---------- Botones ---------- */
+  .btn{
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    width:100%; min-height:76px; padding:12px 18px;
+    border:0; border-radius:20px; cursor:pointer;
+    font-size:1.5rem; font-weight:700; color:#fff; background:var(--accent);
+    box-shadow:0 6px 0 var(--accent-osc);
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  .btn:active{transform:translateY(5px); box-shadow:0 1px 0 var(--accent-osc)}
+  .btn:focus-visible, .nav button:focus-visible, .teclado button:focus-visible, .btn-bloquear:focus-visible{outline:4px solid #f2b705; outline-offset:3px}
+  .btn-suave{
+    min-height:60px; font-size:1.2rem; background:#fff; color:var(--accent-osc);
+    border:3px solid var(--accent); box-shadow:0 4px 0 var(--accent-cl);
+  }
+  .btn-suave:active{box-shadow:0 0 0 var(--accent-cl); transform:translateY(4px)}
+  .btn-grande{min-height:88px; font-size:1.6rem}
+
+  /* ---------- Navegación inferior ---------- */
+  .nav{
+    position:fixed; left:0; right:0; bottom:0; z-index:30;
+    display:grid; grid-template-columns:repeat(4,1fr);
+    background:#fff; border-top:3px solid var(--borde);
+    padding-bottom:var(--seguro-inf);
+  }
+  .nav button{
+    position:relative; min-height:var(--nav-h); padding:6px 2px;
+    border:0; background:none; color:var(--suave); cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    font-size:.86rem; font-weight:700;
+  }
+  .nav button .i{font-size:1.9rem; line-height:1}
+  .nav button[aria-selected="true"]{color:var(--verde-osc); background:var(--verde-cl)}
+  .nav button[aria-selected="true"]::before{
+    content:""; position:absolute; top:-3px; left:12%; right:12%; height:5px;
+    border-radius:0 0 5px 5px; background:var(--verde);
+  }
+
+  /* ---------- Avisos ---------- */
+  .toast{
+    position:fixed; z-index:90; left:14px; right:14px; top:calc(var(--seguro-sup) + 12px);
+    max-width:610px; margin:0 auto; padding:18px 20px; border-radius:18px;
+    display:flex; align-items:center; gap:14px;
+    color:#fff; font-size:1.3rem; font-weight:700; line-height:1.25;
+    box-shadow:0 10px 30px rgba(0,0,0,.28);
+    transform:translateY(-160%); transition:transform .3s ease;
+  }
+  .toast.on{transform:translateY(0)}
+  .toast.ok{background:var(--ok)}
+  .toast.error{background:var(--error)}
+  .toast .ti{font-size:1.9rem; flex:none}
+
+  /* ---------- Carga ---------- */
+  .overlay{
+    position:fixed; inset:0; z-index:70; display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:20px;
+    background:rgba(19,74,49,.72); color:#fff; text-align:center; padding:24px;
+  }
+  .overlay.on{display:flex}
+  .overlay p{margin:0; font-size:1.7rem; font-weight:700}
+  .spinner{
+    width:70px; height:70px; border-radius:50%;
+    border:8px solid rgba(255,255,255,.3); border-top-color:#fff;
+    animation:giro .9s linear infinite;
+  }
+  @keyframes giro{to{transform:rotate(360deg)}}
+  .cargando{display:flex; flex-direction:column; align-items:center; gap:14px; padding:30px 10px; color:var(--accent-osc); font-weight:700; font-size:1.3rem}
+  .cargando .spinner{width:54px; height:54px; border-width:6px; border-color:var(--accent-cl); border-top-color:var(--accent)}
+  .cargando p{margin:0}
+
+  /* ---------- Historial ---------- */
+  .btn-pend{margin-bottom:22px}
+  .btn-pend.latido{animation:latido 2.6s ease-in-out 1}
+  @keyframes latido{0%,100%{transform:scale(1)} 50%{transform:scale(1.02)}}
+  .zona{margin:0 0 26px}
+  .zona-cab{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 12px}
+  .zona-cab h3{margin:0; font-size:1.4rem; color:var(--accent-osc)}
+  .zona-cab .sub{font-weight:700; color:var(--suave); font-size:1.05rem}
+  .mini{
+    min-height:48px; padding:0 16px; border-radius:12px; border:2px solid var(--borde);
+    background:#fff; color:var(--suave); font-size:1.05rem; font-weight:700; cursor:pointer;
+  }
+  .total-caja{
+    display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+    background:var(--accent); color:#fff; border-radius:18px; padding:16px 18px; margin-bottom:12px;
+  }
+  .total-caja span{font-size:1.15rem; font-weight:700}
+  .total-caja strong{font-size:1.9rem}
+
+  .tarjeta{
+    background:#fff; border:2px solid var(--borde); border-left:10px solid var(--accent);
+    border-radius:16px; padding:14px 16px; margin-bottom:12px;
+  }
+  .tarjeta-cab{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px}
+  .tarjeta-cab strong{font-size:1.3rem}
+  .fila{display:flex; justify-content:space-between; gap:14px; padding:5px 0; border-top:1px solid #e3ece6}
+  .fila:first-of-type{border-top:0}
+  .fila .et{color:var(--suave)}
+  .fila .va{font-weight:700; text-align:right; word-break:break-word}
+  .monto{margin-top:6px; font-size:1.55rem; font-weight:700; color:var(--accent-osc); text-align:right}
+  .chip{flex:none; padding:4px 12px; border-radius:999px; font-size:1rem; font-weight:700}
+  .chip.pendiente{background:var(--ambar-cl); color:var(--ambar); border:2px solid #e7c470}
+  .chip.pagado{background:var(--verde-cl); color:var(--verde-osc); border:2px solid #9fd0b3}
+  .vacio{text-align:center; color:var(--suave); padding:22px 12px; border:2px dashed var(--borde); border-radius:16px; background:#fff}
+  .vacio .em{display:block; font-size:2.2rem; margin-bottom:4px}
+  .vacio p{margin:0}
+  .falla{background:#fdf1f0; border:2px solid #e9b3ae; border-radius:16px; padding:16px; margin-bottom:12px; color:#7d1a14; font-weight:700}
+  .falla p{margin:0 0 12px}
+
+  /* ---------- Varios productos de un proveedor ---------- */
+  .fecha-hoy{margin:0 0 16px; padding:10px 14px; border-radius:12px; background:var(--accent-cl); color:var(--accent-osc); font-weight:700; font-size:1.05rem}
+  .item-producto{
+    background:var(--accent-cl); border:2px solid var(--borde);
+    border-radius:18px; padding:16px 14px 4px; margin-bottom:16px;
+  }
+  .item-cab{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px}
+  .item-cab strong{font-size:1.3rem; color:var(--accent-osc)}
+  .btn-quitar{
+    min-height:48px; padding:0 14px; border-radius:12px; border:2px solid #e1a9a4;
+    background:#fff; color:var(--error); font-size:1.05rem; font-weight:700; cursor:pointer;
+  }
+  .item-producto .campo{margin-bottom:16px}
+  .btn-agregar{margin-bottom:22px}
+  #total-pedido{margin-bottom:18px}
+
+  .tarjeta-cab .sub-prov{font-size:1.35rem; font-weight:700; color:var(--accent-osc)}
+  .lineas{margin-top:2px}
+  .linea-prod{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:10px 0}
+  .linea-prod + .linea-prod{border-top:1px solid #e3ece6}
+  .linea-prod .nombre{font-weight:700; font-size:1.15rem}
+  .linea-prod .det{color:var(--suave); font-size:1rem}
+  .linea-prod .der{display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:none}
+  .linea-prod .pre{font-weight:700; font-size:1.2rem; white-space:nowrap}
+
+  /* ---------- Historial: listas y confirmación ---------- */
+  .botones-lista{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px}
+  .btn-lista{flex-direction:column; min-height:108px; padding:12px 8px; gap:6px; font-size:1.2rem; line-height:1.2; text-align:center}
+  .btn-lista .em{font-size:2.1rem; line-height:1}
+  .btn-lista[aria-pressed="true"]{outline:4px solid var(--accent); outline-offset:3px}
+  .btn-pagados{--accent:var(--verde); --accent-osc:var(--verde-osc); --accent-cl:var(--verde-cl)}
+  .ayuda{margin:0 0 12px; color:var(--suave); font-size:1.05rem}
+  .btn-pagar{
+    min-height:52px; padding:0 14px; border-radius:12px; border:2px solid var(--verde);
+    background:#fff; color:var(--verde-osc); font-size:1.05rem; font-weight:700; cursor:pointer; white-space:nowrap;
+  }
+  .btn-pagar:active{background:var(--verde-cl)}
+  .btn-pagar-todo{width:100%; min-height:56px; margin-top:8px; font-size:1.1rem; white-space:normal}
+  .confirmar{
+    position:fixed; inset:0; z-index:85; display:flex; align-items:center; justify-content:center;
+    padding:20px; background:rgba(19,50,35,.65);
+  }
+  .confirmar-caja{width:100%; max-width:440px; background:#fff; border-radius:22px; padding:26px 20px 22px; text-align:center}
+  .confirmar-caja h3{margin:0 0 8px; font-size:1.6rem; line-height:1.2}
+  .confirmar-caja p{margin:0 0 22px; font-size:1.3rem; word-break:break-word}
+  .conf-botones{display:grid; gap:14px}
+
+  /* ---------- Bloqueo con PIN ---------- */
+  .pin{
+    position:fixed; inset:0; z-index:100; display:none; overflow:auto;
+    flex-direction:column; align-items:center; justify-content:center;
+    background:var(--verde-osc); color:#fff; text-align:center;
+    padding:calc(var(--seguro-sup) + 16px) 20px calc(var(--seguro-inf) + 16px);
+  }
+  .pin.on{display:flex}
+  .pin .logo{font-size:3.6rem; line-height:1}
+  .pin h2{margin:8px 0 2px; font-size:1.9rem}
+  .pin p{margin:0; font-size:1.15rem; opacity:.9}
+  .puntos{display:flex; gap:18px; margin:22px 0 8px}
+  .puntos i{display:block; width:24px; height:24px; border-radius:50%; border:3px solid #fff}
+  .puntos i.lleno{background:#fff}
+  .pin-msg{min-height:1.6em; margin:0 0 14px; font-weight:700; color:#ffd7d3; font-size:1.15rem}
+  .teclado{--tk:min(82px, 21vw); display:grid; grid-template-columns:repeat(3, var(--tk)); gap:14px}
+  .teclado button{
+    height:var(--tk); border-radius:50%; border:2px solid rgba(255,255,255,.35);
+    background:rgba(255,255,255,.12); color:#fff; font-size:2rem; font-weight:700; cursor:pointer;
+  }
+  .teclado button:active{background:rgba(255,255,255,.4)}
+  .teclado .vacio-tecla{visibility:hidden}
+  .sacudir{animation:sacudir .4s}
+  @keyframes sacudir{20%{transform:translateX(-12px)} 40%{transform:translateX(12px)} 60%{transform:translateX(-8px)} 80%{transform:translateX(8px)}}
+  @media (max-height:650px){ .teclado{--tk:60px; gap:10px} .pin .logo{font-size:2.6rem} .puntos{margin:12px 0 6px} }
+
+  @media (prefers-reduced-motion:reduce){
+    *, *::before, *::after{animation:none !important; transition:none !important}
+  }
+</style>
+</head>
+
+<body class="bloqueado">
+
+<!-- ================= PANTALLA DE BLOQUEO ================= -->
+<div class="pin on" id="pin" role="dialog" aria-modal="true" aria-labelledby="pin-titulo">
+  <div class="logo" aria-hidden="true">🏪</div>
+  <h2 id="pin-titulo">Mi Tienda</h2>
+  <p>Escriba su PIN de 4 números</p>
+  <div class="puntos" id="puntos" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <p class="pin-msg" id="pin-msg" role="alert"></p>
+  <div class="teclado" id="teclado">
+    <button type="button" data-k="1">1</button>
+    <button type="button" data-k="2">2</button>
+    <button type="button" data-k="3">3</button>
+    <button type="button" data-k="4">4</button>
+    <button type="button" data-k="5">5</button>
+    <button type="button" data-k="6">6</button>
+    <button type="button" data-k="7">7</button>
+    <button type="button" data-k="8">8</button>
+    <button type="button" data-k="9">9</button>
+    <button type="button" class="vacio-tecla" tabindex="-1" aria-hidden="true"></button>
+    <button type="button" data-k="0">0</button>
+    <button type="button" data-k="borrar" aria-label="Borrar">⌫</button>
+  </div>
+</div>
+
+<!-- ================= AVISO Y CARGA ================= -->
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span class="ti" id="toast-icono" aria-hidden="true">✅</span>
+  <span id="toast-texto"></span>
+</div>
+
+<div class="overlay" id="overlay" role="alert" aria-live="assertive">
+  <div class="spinner" aria-hidden="true"></div>
+  <p id="overlay-msg">Guardando...</p>
+</div>
+
+<div class="confirmar" id="confirmar" role="dialog" aria-modal="true" aria-labelledby="conf-titulo" hidden>
+  <div class="confirmar-caja">
+    <h3 id="conf-titulo"></h3>
+    <p id="conf-texto"></p>
+    <div class="conf-botones">
+      <button type="button" class="btn" id="conf-si">✅ Sí, ya pagué</button>
+      <button type="button" class="btn btn-suave" id="conf-no">Volver</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ENCABEZADO ================= -->
+<header class="app-header">
+  <div>
+    <h1>🏪 Mi Tienda</h1>
+    <p class="hoy" id="hoy"></p>
+  </div>
+  <button type="button" class="btn-bloquear" id="btn-bloquear" aria-label="Bloquear la aplicación">🔒</button>
+</header>
+
+<main>
+  <noscript><p>Esta aplicación necesita JavaScript activado para funcionar.</p></noscript>
+
+  <!-- ============ 1. CAJA ============ -->
+  <section class="view" id="vista-caja" data-acento="verde" role="tabpanel" aria-labelledby="tab-caja">
+    <div class="titulo-vista">
+      <div class="ico" aria-hidden="true">💵</div>
+      <div><h2>Cierre de caja</h2><p>Anote el dinero del día</p></div>
+    </div>
+    <div class="fecha-hoy" data-fecha-hoy></div>
+    <form class="hoja" id="form-caja" novalidate autocomplete="off">
+      <div class="campo">
+        <label for="cajaInicial">Caja inicial</label>
+        <div class="moneda"><span>Bs</span>
+          <input id="cajaInicial" name="cajaInicial" type="number" inputmode="decimal" step="any" min="0" placeholder="0.00" required enterkeyhint="next">
+        </div>
+        <div class="msg-error"></div>
+      </div>
+      <div class="campo">
+        <label for="cajaFinal">Caja final</label>
+        <div class="moneda"><span>Bs</span>
+          <input id="cajaFinal" name="cajaFinal" type="number" inputmode="decimal" step="any" min="0" placeholder="0.00" required enterkeyhint="next">
+        </div>
+        <div class="msg-error"></div>
+      </div>
+      <div class="campo">
+        <label for="totalQR">Total QR</label>
+        <div class="moneda"><span>Bs</span>
+          <input id="totalQR" name="totalQR" type="number" inputmode="decimal" step="any" min="0" placeholder="0.00" enterkeyhint="done">
+        </div>
+        <div class="msg-error"></div>
+      </div>
+      <button class="btn" type="submit">💾 Guardar cierre de caja</button>
+    </form>
+  </section>
+
+  <!-- ============ 2. GASTOS ============ -->
+  <section class="view" id="vista-gastos" data-acento="azul" role="tabpanel" aria-labelledby="tab-gastos" hidden>
+    <div class="titulo-vista">
+      <div class="ico" aria-hidden="true">🍔</div>
+      <div><h2>Gastos</h2><p>Anote lo que salió de la caja</p></div>
+    </div>
+    <div class="fecha-hoy" data-fecha-hoy></div>
+    <form class="hoja" id="form-gasto" novalidate autocomplete="off">
+      <div class="campo">
+        <label for="descripcion">Descripción del gasto</label>
+        <input id="descripcion" name="descripcion" type="text" placeholder="Ej: Almuerzo personal" required autocapitalize="sentences" enterkeyhint="next">
+        <div class="msg-error"></div>
+      </div>
+      <div class="campo">
+        <label for="montoGasto">Monto</label>
+        <div class="moneda"><span>Bs</span>
+          <input id="montoGasto" name="monto" type="number" inputmode="decimal" step="any" min="0" data-positivo placeholder="0.00" required enterkeyhint="done">
+        </div>
+        <div class="msg-error"></div>
+      </div>
+      <button class="btn" type="submit">🧾 Registrar gasto</button>
+    </form>
+  </section>
+
+  <!-- ============ 3. PROVEEDORES ============ -->
+  <section class="view" id="vista-proveedores" data-acento="teal" role="tabpanel" aria-labelledby="tab-proveedores" hidden>
+    <div class="titulo-vista">
+      <div class="ico" aria-hidden="true">🚚</div>
+      <div><h2>Proveedores</h2><p>Anote los productos que le dejaron</p></div>
+    </div>
+    <div class="fecha-hoy" data-fecha-hoy></div>
+    <form class="hoja" id="form-proveedor" novalidate autocomplete="off">
+      <div class="campo">
+        <label for="proveedor">Proveedor</label>
+        <input id="proveedor" name="proveedor" type="text" placeholder="Ej: PIL" required autocapitalize="words" enterkeyhint="next">
+        <div class="msg-error"></div>
+      </div>
+
+      <div id="lista-productos"></div>
+
+      <button type="button" class="btn btn-suave btn-agregar" id="btn-agregar-producto">➕ Agregar otro producto</button>
+
+      <div class="total-caja" id="total-pedido" hidden><span>Total de este pedido</span><strong>Bs 0.00</strong></div>
+      <button class="btn" type="submit">📦 Registrar productos</button>
+    </form>
+  </section>
+
+  <!-- ============ 4. HISTORIAL Y RESUMEN ============ -->
+  <section class="view" id="vista-historial" data-acento="marino" role="tabpanel" aria-labelledby="tab-historial" hidden>
+    <div class="titulo-vista">
+      <div class="ico" aria-hidden="true">📊</div>
+      <div><h2>Historial y resumen</h2><p>Consulte lo que ya registró</p></div>
+    </div>
+
+    <div class="botones-lista">
+      <button type="button" class="btn btn-lista" id="btn-pendientes" aria-pressed="false"><span class="em" aria-hidden="true">💰</span>Ver pendientes de pago</button>
+      <button type="button" class="btn btn-lista btn-pagados" id="btn-pagados" aria-pressed="false"><span class="em" aria-hidden="true">✅</span>Ver productos pagados</button>
+    </div>
+    <div class="zona" id="resultado-lista" aria-live="polite"></div>
+
+    <div class="hoja">
+      <div class="campo" style="margin-bottom:0">
+        <label for="fecha">Ver el resumen de un día</label>
+        <p class="ayuda">Muestra la caja, los gastos y los productos pagados y pendientes de ese día.</p>
+        <input id="fecha" type="date">
+      </div>
+    </div>
+    <div class="zona" id="resultado-resumen" style="margin-top:20px" aria-live="polite"></div>
+  </section>
+</main>
+
+<!-- ================= BARRA INFERIOR ================= -->
+<nav class="nav" role="tablist" aria-label="Secciones">
+  <button type="button" role="tab" id="tab-caja" data-vista="caja" aria-selected="true"><span class="i" aria-hidden="true">💵</span>Caja</button>
+  <button type="button" role="tab" id="tab-gastos" data-vista="gastos" aria-selected="false"><span class="i" aria-hidden="true">🍔</span>Gastos</button>
+  <button type="button" role="tab" id="tab-proveedores" data-vista="proveedores" aria-selected="false"><span class="i" aria-hidden="true">🚚</span>Proveedores</button>
+  <button type="button" role="tab" id="tab-historial" data-vista="historial" aria-selected="false"><span class="i" aria-hidden="true">📊</span>Historial</button>
+</nav>
+
+<script>
+/* =====================================================
+   CONFIGURACIÓN
+   ===================================================== */
+const URL_API = "https://script.google.com/macros/s/AKfycbwSUMqlONys0Fd_yO5BIGG6FfE1S_qLrtKff7p3JQ66PevjEE4KcVUgk4A0vtSaeg/exec";
+const PIN_CORRECTO = "1234";          // Cambie aquí el PIN si lo desea
+const CLAVE_PIN = "tienda_pin_ok";    // Clave de LocalStorage
+const TIEMPO_MAX_MS = 45000;          // Espera máxima por respuesta (Apps Script puede tardar al "despertar")
+
+/* =====================================================
+   UTILIDADES
+   ===================================================== */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+function hoy() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function num(v) {
+  const n = parseFloat(String(v).trim().replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
+function bs(n) {
+  return 'Bs ' + Number(n).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function dinero(v) {
+  const n = typeof v === 'number' ? v : num(v);
+  return n === null ? esc(v) : bs(n);
+}
+function fechaLarga(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  if (!m) return iso || '';
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return d.toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+function fechaCorta(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : String(v);
+}
+const etiqueta = k => String(k).replace(/[_-]+/g, ' ')
+  .replace(/([a-z\u00e1\u00e9\u00ed\u00f3\u00fa])([A-Z])/g, '$1 $2')
+  .replace(/\s+/g, ' ').trim()
+  .replace(/(^|\s)(\S)/g, (m, a, b) => a + b.toUpperCase())
+  .replace(/\bQr\b/g, 'QR');
+
+function textoHoy(conAnio) {
+  const o = { weekday: 'long', day: 'numeric', month: 'long' };
+  if (conAnio) o.year = 'numeric';
+  const f = new Date().toLocaleDateString('es-BO', o);
+  return f.charAt(0).toUpperCase() + f.slice(1);
+}
+function actualizarFechas() {
+  $('#hoy').textContent = textoHoy(false);
+  $$('[data-fecha-hoy]').forEach(el => { el.textContent = '📅 Se guardará con la fecha de hoy: ' + textoHoy(true); });
+}
+
+function guardarLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function leerLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function borrarLocal(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+/* =====================================================
+   AVISOS Y CARGA
+   ===================================================== */
+let temporizadorAviso;
+function aviso(tipo, texto) {
+  const t = $('#toast');
+  t.className = 'toast ' + tipo;
+  $('#toast-icono').textContent = tipo === 'ok' ? '✅' : '⚠️';
+  $('#toast-texto').textContent = texto;
+  requestAnimationFrame(() => t.classList.add('on'));
+  clearTimeout(temporizadorAviso);
+  temporizadorAviso = setTimeout(() => t.classList.remove('on'), tipo === 'ok' ? 3500 : 6500);
+  if (tipo === 'ok' && navigator.vibrate) navigator.vibrate(60);
+}
+$('#toast').addEventListener('click', () => $('#toast').classList.remove('on'));
+
+function cargando(activo, mensaje) {
+  if (mensaje) $('#overlay-msg').textContent = mensaje;
+  $('#overlay').classList.toggle('on', activo);
+}
+const cargandoHTML = t => `<div class="cargando"><div class="spinner"></div><p>${esc(t)}</p></div>`;
+
+/* =====================================================
+   COMUNICACIÓN CON LA API (Google Apps Script)
+   ===================================================== */
+async function pedir(url, opciones = {}) {
+  const ctl = new AbortController();
+  const reloj = setTimeout(() => ctl.abort(), TIEMPO_MAX_MS);
+  try {
+    const r = await fetch(url, { ...opciones, signal: ctl.signal, redirect: 'follow' });
+    const texto = await r.text();
+    if (!r.ok) throw new Error('El servidor respondió con un error (' + r.status + ').');
+
+    let data;
+    try {
+      data = JSON.parse(texto);
+    } catch (e) {
+      if (/^\s*<(!doctype|html)/i.test(texto)) {
+        throw new Error('El servidor no respondió como se esperaba. Revise que la aplicación de Google esté publicada con acceso para "Cualquiera".');
+      }
+      data = { ok: true, mensaje: texto };
+    }
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const st = String(data.status ?? '').toLowerCase();
+      if (data.error || st === 'error' || data.success === false || data.ok === false) {
+        const detalle = typeof data.error === 'string' ? data.error : (data.message || data.mensaje);
+        throw new Error(detalle || 'El servidor no pudo completar la solicitud.');
+      }
+    }
+    return data;
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('La conexión tardó demasiado. Intente de nuevo.');
+    if (e instanceof TypeError || e.name === 'TypeError') throw new Error('No se pudo conectar. Revise su internet e intente de nuevo.');
+    throw e;
+  } finally {
+    clearTimeout(reloj);
+  }
+}
+
+let guardando = false;
+async function enviar(payload) {
+  if (guardando) return false;
+  guardando = true;
+  cargando(true, 'Guardando...');
+  try {
+    // text/plain evita el "preflight" CORS, que Apps Script no soporta
+    await pedir(URL_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    return true;
+  } catch (e) {
+    aviso('error', e.message);
+    return false;
+  } finally {
+    guardando = false;
+    cargando(false);
+  }
+}
+
+/* =====================================================
+   VALIDACIÓN DE FORMULARIOS
+   ===================================================== */
+function validarForm(form) {
+  let primero = null;
+  $$('.campo', form).forEach(c => {
+    const inp = $('input, select', c);
+    if (!inp) return;
+    let error = '';
+    const v = inp.value.trim();
+    if (inp.required && v === '') {
+      error = 'Este dato es obligatorio.';
+    } else if (inp.type === 'number' && v !== '') {
+      const n = num(v);
+      if (n === null || n < 0) error = 'Escriba un número válido.';
+      else if (inp.hasAttribute('data-positivo') && n <= 0) error = 'Escriba un número mayor a cero.';
+    }
+    c.classList.toggle('invalido', !!error);
+    const m = $('.msg-error', c);
+    if (m) m.textContent = error;
+    if (error && !primero) primero = inp;
+  });
+  if (primero) {
+    primero.focus();
+    primero.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    aviso('error', 'Revise los datos marcados en rojo.');
+    return false;
+  }
+  return true;
+}
+function limpiarErrores(form) { $$('.campo.invalido', form).forEach(c => c.classList.remove('invalido')); }
+document.addEventListener('input', e => {
+  const c = e.target.closest && e.target.closest('.campo.invalido');
+  if (c) c.classList.remove('invalido');
+});
+
+/* =====================================================
+   FORMULARIOS: CAJA, GASTOS, PROVEEDORES
+   ===================================================== */
+$('#form-caja').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  if (!validarForm(f)) return;
+  const el = f.elements;
+  const ok = await enviar({
+    tipo: 'caja',
+    fecha: hoy(),
+    cajaInicial: num(el.cajaInicial.value),
+    cajaFinal: num(el.cajaFinal.value),
+    totalQR: num(el.totalQR.value) || 0
+  });
+  if (ok) { f.reset(); limpiarErrores(f); aviso('ok', '¡Cierre de caja guardado!'); }
+});
+
+$('#form-gasto').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  if (!validarForm(f)) return;
+  const el = f.elements;
+  const ok = await enviar({
+    tipo: 'gasto',
+    fecha: hoy(),
+    descripcion: el.descripcion.value.trim(),
+    monto: num(el.monto.value)
+  });
+  if (ok) { f.reset(); limpiarErrores(f); aviso('ok', '¡Gasto registrado!'); }
+});
+
+/* ---- Proveedor: un proveedor puede dejar varios productos ---- */
+let contadorItems = 0;
+
+function nuevoItem() {
+  const n = ++contadorItems;
+  const div = document.createElement('div');
+  div.className = 'item-producto';
+  div.innerHTML = `
+    <div class="item-cab">
+      <strong class="item-num">Producto</strong>
+      <button type="button" class="btn-quitar" data-accion="quitar-producto" aria-label="Quitar este producto">🗑️ Quitar</button>
+    </div>
+    <div class="campo">
+      <label for="producto-${n}">Producto</label>
+      <input id="producto-${n}" data-campo="producto" type="text" placeholder="Ej: Leche entera 1 litro" required autocapitalize="sentences" enterkeyhint="next">
+      <div class="msg-error"></div>
+    </div>
+    <div class="campo">
+      <label for="cantidad-${n}">Cantidad</label>
+      <input id="cantidad-${n}" data-campo="cantidad" type="number" inputmode="decimal" step="any" min="0" data-positivo placeholder="Ej: 50" required enterkeyhint="next">
+      <div class="msg-error"></div>
+    </div>
+    <div class="campo">
+      <label for="precio-${n}">Precio a pagar por este producto</label>
+      <div class="moneda"><span>Bs</span>
+        <input id="precio-${n}" data-campo="precioTotal" type="number" inputmode="decimal" step="any" min="0" data-positivo placeholder="0.00" required enterkeyhint="done">
+      </div>
+      <div class="msg-error"></div>
+    </div>
+    <div class="campo">
+      <label for="estado-${n}">Estado</label>
+      <select id="estado-${n}" data-campo="estado">
+        <option value="Pendiente">Pendiente (falta pagar)</option>
+        <option value="Pagado">Pagado</option>
+      </select>
+    </div>`;
+  $('#lista-productos').appendChild(div);
+  renumerarItems();
+  return div;
+}
+
+function renumerarItems() {
+  const items = $$('#lista-productos .item-producto');
+  items.forEach((it, i) => {
+    $('.item-num', it).textContent = 'Producto ' + (i + 1);
+    $('.btn-quitar', it).hidden = items.length === 1;
+  });
+  actualizarTotalPedido();
+}
+
+function actualizarTotalPedido() {
+  const total = $$('#lista-productos [data-campo="precioTotal"]').reduce((a, i) => a + (num(i.value) || 0), 0);
+  $('#total-pedido strong').textContent = bs(total);
+  $('#total-pedido').hidden = total <= 0;
+}
+
+$('#btn-agregar-producto').addEventListener('click', () => {
+  const div = nuevoItem();
+  $('input', div).focus({ preventScroll: true });
+  div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+$('#lista-productos').addEventListener('input', actualizarTotalPedido);
+
+$('#form-proveedor').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  if (guardando) return;
+  if (!validarForm(f)) return;
+
+  const proveedor = $('#proveedor').value.trim();
+  const items = $$('#lista-productos .item-producto');
+  const total = items.length;
+  let guardados = 0;
+
+  guardando = true;
+  try {
+    // Se guarda un registro por producto (mismo formato que ya entiende el script)
+    for (const it of items) {
+      cargando(true, total > 1 ? 'Guardando ' + (guardados + 1) + ' de ' + total + '...' : 'Guardando...');
+      await pedir(URL_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          tipo: 'proveedor',
+          fecha: hoy(),
+          proveedor: proveedor,
+          producto: $('[data-campo="producto"]', it).value.trim(),
+          cantidad: num($('[data-campo="cantidad"]', it).value),
+          precioTotal: num($('[data-campo="precioTotal"]', it).value),
+          estado: $('[data-campo="estado"]', it).value
+        })
+      });
+      guardados++;
+      it.remove();          // lo ya guardado sale de la pantalla para no repetirlo
+    }
+  } catch (err) {
+    renumerarItems();
+    aviso('error', guardados > 0
+      ? 'Se guardaron ' + guardados + ' de ' + total + ' productos. Los que faltan siguen en pantalla: toque "Registrar productos" otra vez. ' + err.message
+      : err.message);
+    return;
+  } finally {
+    guardando = false;
+    cargando(false);
+  }
+
+  f.reset();
+  limpiarErrores(f);
+  $('#lista-productos').innerHTML = '';
+  nuevoItem();
+  aviso('ok', total > 1 ? '¡' + total + ' productos registrados!' : '¡Producto registrado!');
+});
+
+/* =====================================================
+   LECTURA FLEXIBLE DE RESPUESTAS DEL SERVIDOR
+   ===================================================== */
+function buscar(obj, nombres) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return undefined;
+  const mapa = {};
+  Object.keys(obj).forEach(k => { mapa[norm(k)] = obj[k]; });
+  for (const n of nombres) {
+    if (mapa[n] !== undefined && mapa[n] !== null && mapa[n] !== '') return mapa[n];
+  }
+  return undefined;
+}
+function desenvolver(d) {
+  for (let i = 0; i < 2; i++) {
+    if (d && typeof d === 'object' && !Array.isArray(d)) {
+      const dentro = buscar(d, ['data', 'datos', 'resultado', 'result']);
+      if (dentro && typeof dentro === 'object') d = dentro; else break;
+    }
+  }
+  return d;
+}
+function comoLista(v) {
+  if (v === undefined || v === null || v === '') return [];
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'object') return [v];
+  return [];
+}
+function suma(lista, nombres) {
+  return lista.reduce((a, r) => {
+    const v = buscar(r, nombres);
+    const n = v === undefined ? null : (typeof v === 'number' ? v : num(v));
+    return a + (n || 0);
+  }, 0);
+}
+
+const K_PRECIO = ['preciototal', 'precio', 'total', 'monto', 'importe', 'deuda', 'saldo'];
+const K_MONTO  = ['monto', 'importe', 'total', 'valor', 'precio'];
+
+/* =====================================================
+   TARJETAS
+   ===================================================== */
+const fila = (et, va) => `<div class="fila"><span class="et">${esc(et)}</span><span class="va">${va}</span></div>`;
+
+function chip(est) {
+  const e = String(est);
+  return `<span class="chip ${/pagad/i.test(e) ? 'pagado' : 'pendiente'}">${esc(e)}</span>`;
+}
+
+function tarjetaGenerica(x) {
+  let filas = '';
+  if (Array.isArray(x)) filas = x.map(v => `<div class="fila"><span class="va" style="text-align:left">${esc(v)}</span></div>`).join('');
+  else if (x && typeof x === 'object') filas = Object.entries(x).filter(([, v]) => v !== '' && v !== null && typeof v !== 'object').map(([k, v]) => fila(etiqueta(k), esc(v))).join('');
+  else filas = `<div class="fila"><span class="va" style="text-align:left">${esc(x)}</span></div>`;
+  return `<article class="tarjeta">${filas}</article>`;
+}
+
+function nombreProv(p) {
+  return String(buscar(p, ['proveedor', 'nombre']) ?? 'Sin proveedor').trim() || 'Sin proveedor';
+}
+function claveProv(p) { return norm(nombreProv(p)) || 'sinproveedor'; }
+function esPagado(p) { return /pagad/i.test(String(buscar(p, ['estado', 'status']) ?? '')); }
+
+/* opciones: conEstado (mostrar Pendiente/Pagado), fechas [[campo, etiqueta]], acciones (botones "Ya pagué") */
+function grupoProveedores(lista, opciones = {}) {
+  const conEstado = opciones.conEstado !== false;
+  const fechas = opciones.fechas || [];
+  const acciones = !!opciones.acciones;
+  const grupos = new Map();
+  const sueltos = [];
+
+  lista.forEach(p => {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) { sueltos.push(p); return; }
+    const clave = claveProv(p);
+    if (!grupos.has(clave)) grupos.set(clave, { nombre: nombreProv(p), items: [] });
+    grupos.get(clave).items.push(p);
+  });
+
+  let html = '';
+  grupos.forEach((g, clave) => {
+    const subtotal = suma(g.items, K_PRECIO);
+    const lineas = g.items.map(p => {
+      const prod   = buscar(p, ['producto', 'detalle', 'descripcion']);
+      const cant   = buscar(p, ['cantidad', 'cant']);
+      const precio = buscar(p, K_PRECIO);
+      const est    = buscar(p, ['estado', 'status']);
+      const fila   = buscar(p, ['fila']);
+      const detFechas = fechas.map(([campo, et]) => {
+        const v = buscar(p, campo === 'fechapago' ? ['fechapago', 'fechadepago'] : [campo]);
+        return v !== undefined ? `<div class="det">${esc(et)}: ${esc(fechaCorta(v))}</div>` : '';
+      }).join('');
+      const botonPagar = acciones && fila !== undefined
+        ? `<button type="button" class="btn-pagar" data-accion="pagar-una" data-fila="${esc(fila)}">✅ Ya pagué</button>` : '';
+      return `<div class="linea-prod">
+        <div>
+          <div class="nombre">${esc(prod ?? 'Producto')}</div>
+          ${cant !== undefined ? `<div class="det">Cantidad: ${esc(cant)}</div>` : ''}
+          ${detFechas}
+        </div>
+        <div class="der">
+          ${precio !== undefined ? `<div class="pre">${dinero(precio)}</div>` : ''}
+          ${conEstado && est !== undefined ? chip(est) : ''}
+          ${botonPagar}
+        </div>
+      </div>`;
+    }).join('');
+
+    const pagarTodo = acciones && g.items.length > 1 && g.items.every(x => buscar(x, ['fila']) !== undefined)
+      ? `<button type="button" class="btn-pagar btn-pagar-todo" data-accion="pagar-todo" data-grupo="${esc(clave)}">✅ Ya pagué todo lo de ${esc(g.nombre)}</button>` : '';
+
+    html += `<article class="tarjeta">
+      <div class="tarjeta-cab"><strong>${esc(g.nombre)}</strong>${subtotal > 0 ? `<span class="sub-prov">${bs(subtotal)}</span>` : ''}</div>
+      <div class="lineas">${lineas}</div>
+      ${pagarTodo}
+    </article>`;
+  });
+  return html + sueltos.map(tarjetaGenerica).join('');
+}
+
+function tarjetaGasto(g) {
+  if (!g || typeof g !== 'object' || Array.isArray(g)) return tarjetaGenerica(g);
+  const desc  = buscar(g, ['descripciondelgasto', 'descripcion', 'gasto', 'detalle', 'concepto']);
+  const monto = buscar(g, K_MONTO);
+  return `<article class="tarjeta">
+    <div class="tarjeta-cab"><strong>${esc(desc ?? 'Gasto')}</strong></div>
+    ${monto !== undefined ? `<div class="monto">${dinero(monto)}</div>` : ''}
+  </article>`;
+}
+
+function tarjetaCaja(c) {
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return tarjetaGenerica(c);
+  const omitir = new Set(['fecha', 'hora', 'tipo', 'id', 'timestamp', 'marcatemporal', 'date']);
+  const esDinero = k => /inicial|final|qr|total|venta|efectivo|monto|gasto|saldo|diferencia|precio|deuda|ingreso|utilidad|ganancia/.test(norm(k));
+  const filas = Object.entries(c)
+    .filter(([k, v]) => !omitir.has(norm(k)) && v !== null && v !== '' && typeof v !== 'object')
+    .map(([k, v]) => fila(etiqueta(k), esDinero(k) ? dinero(v) : esc(v)));
+  return `<article class="tarjeta">${filas.join('') || '<div class="fila"><span class="et">Sin datos</span></div>'}</article>`;
+}
+
+const vacio = (emoji, texto) => `<div class="vacio"><span class="em" aria-hidden="true">${emoji}</span><p>${esc(texto)}</p></div>`;
+const falla = (msg, accion) => `<div class="falla"><p>${esc(msg)}</p><button type="button" class="btn btn-suave" data-accion="${accion}">🔄 Intentar de nuevo</button></div>`;
+
+/* =====================================================
+   HISTORIAL: PENDIENTES DE PAGO Y PAGADOS
+   ===================================================== */
+let tokenLista = 0;
+let pendientesCache = [];
+let diasPagados = 30;
+const esObj = x => x && typeof x === 'object' && !Array.isArray(x);
+
+function marcarBoton(cual) {
+  $('#btn-pendientes').setAttribute('aria-pressed', String(cual === 'pendientes'));
+  $('#btn-pagados').setAttribute('aria-pressed', String(cual === 'pagados'));
+}
+const cabLista = titulo => `<div class="zona-cab"><h3>${titulo}</h3><button type="button" class="mini" data-accion="ocultar-lista">Ocultar</button></div>`;
+
+async function cargarPendientes() {
+  marcarBoton('pendientes');
+  const cont = $('#resultado-lista');
+  const mio = ++tokenLista;
+  cont.innerHTML = cargandoHTML('Buscando información...');
+  try {
+    const data = await pedir(`${URL_API}?action=getPendientes`);
+    if (mio !== tokenLista) return;
+    const d = desenvolver(data);
+    const lista = Array.isArray(d) ? d
+      : comoLista(buscar(d, ['pendientes', 'pedidos', 'pedidospendientes', 'productospendientes', 'deudas', 'items', 'lista']));
+    pendientesCache = lista.filter(esObj);
+
+    const cab = cabLista('💰 Productos por pagar');
+    if (!lista.length) {
+      cont.innerHTML = cab + vacio('🎉', 'No hay productos pendientes de pago. No debe nada a sus proveedores.');
+      return;
+    }
+    const total = suma(lista, K_PRECIO);
+    cont.innerHTML = cab +
+      (total > 0 ? `<div class="total-caja"><span>Total por pagar</span><strong>${bs(total)}</strong></div>` : '') +
+      grupoProveedores(lista, { conEstado: false, fechas: [['fecha', 'Llegó el']], acciones: true });
+  } catch (e) {
+    if (mio !== tokenLista) return;
+    cont.innerHTML = falla(e.message, 'reintentar-pendientes');
+  }
+}
+
+async function cargarPagados() {
+  marcarBoton('pagados');
+  const cont = $('#resultado-lista');
+  const mio = ++tokenLista;
+  cont.innerHTML = cargandoHTML('Buscando información...');
+  try {
+    const data = await pedir(`${URL_API}?action=getPagados&dias=${diasPagados}`);
+    if (mio !== tokenLista) return;
+    const d = desenvolver(data);
+    const lista = Array.isArray(d) ? d
+      : comoLista(buscar(d, ['pagados', 'productospagados', 'items', 'lista']));
+
+    const opciones = [[7, 'Últimos 7 días'], [30, 'Últimos 30 días'], [90, 'Últimos 3 meses'], [0, 'Todos']];
+    const selector = `<div class="campo" style="margin-bottom:14px">
+      <label for="dias-pagados">Mostrar pagos de</label>
+      <select id="dias-pagados">${opciones.map(([v, t]) => `<option value="${v}"${v === diasPagados ? ' selected' : ''}>${t}</option>`).join('')}</select>
+    </div>`;
+    const cab = cabLista('✅ Productos pagados') + selector;
+
+    if (!lista.length) {
+      cont.innerHTML = cab + vacio('📭', 'No hay productos pagados en este período.');
+      return;
+    }
+    const total = suma(lista, K_PRECIO);
+    cont.innerHTML = cab +
+      (total > 0 ? `<div class="total-caja"><span>Total pagado</span><strong>${bs(total)}</strong></div>` : '') +
+      grupoProveedores(lista, { conEstado: false, fechas: [['fecha', 'Llegó el'], ['fechapago', 'Pagado el']] });
+  } catch (e) {
+    if (mio !== tokenLista) return;
+    cont.innerHTML = falla(e.message, 'reintentar-pagados');
+  }
+}
+
+/* ---- Marcar como pagado (con confirmación) ---- */
+function preguntar(titulo, texto) {
+  return new Promise(resolve => {
+    $('#conf-titulo').textContent = titulo;
+    $('#conf-texto').textContent = texto;
+    const caja = $('#confirmar');
+    caja.hidden = false;
+    const cerrar = r => { caja.hidden = true; $('#conf-si').onclick = null; $('#conf-no').onclick = null; resolve(r); };
+    $('#conf-si').onclick = () => cerrar(true);
+    $('#conf-no').onclick = () => cerrar(false);
+    $('#conf-no').focus();
+  });
+}
+
+async function confirmarPago(items) {
+  if (!items.length || guardando) return;
+  const total = suma(items, K_PRECIO);
+  const prov = nombreProv(items[0]);
+  const uno = items.length === 1;
+  const titulo = uno ? '¿Ya pagó este producto?' : '¿Ya pagó estos ' + items.length + ' productos?';
+  const texto = uno ? (buscar(items[0], ['producto', 'detalle']) ?? 'Producto') + ' de ' + prov + ': ' + bs(total)
+                    : prov + ': ' + bs(total);
+  if (await preguntar(titulo, texto)) pagarProductos(items);
+}
+
+async function pagarProductos(items) {
+  if (guardando) return;
+  guardando = true;
+  cargando(true, 'Guardando...');
+  try {
+    await pedir(URL_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        tipo: 'pagar',
+        fecha: hoy(),
+        items: items.map(i => ({ fila: buscar(i, ['fila']), proveedor: nombreProv(i), producto: String(buscar(i, ['producto', 'detalle']) ?? '') }))
+      })
+    });
+  } catch (e) {
+    aviso('error', e.message);
+    return;
+  } finally {
+    guardando = false;
+    cargando(false);
+  }
+  aviso('ok', items.length === 1 ? '¡Marcado como pagado!' : '¡' + items.length + ' productos marcados como pagados!');
+  cargarPendientes();
+  if ($('#fecha').value) cargarResumen();
+}
+
+/* =====================================================
+   HISTORIAL: RESUMEN POR FECHA
+   ===================================================== */
+let tokenResumen = 0;
+async function cargarResumen() {
+  const fecha = $('#fecha').value;
+  const cont = $('#resultado-resumen');
+  if (!fecha) { cont.innerHTML = vacio('📅', 'Elija un día para ver su resumen.'); return; }
+
+  const mio = ++tokenResumen;
+  cont.innerHTML = cargandoHTML('Buscando información...');
+  try {
+    const data = await pedir(`${URL_API}?action=getResumen&fecha=${encodeURIComponent(fecha)}`);
+    if (mio !== tokenResumen) return;
+
+    let d = desenvolver(data);
+    if (esObj(d) && buscar(d, ['caja', 'gastos', 'productos', 'proveedores', 'pedidos']) === undefined) {
+      const r = buscar(d, ['resumen']);
+      if (esObj(r)) d = r;
+    }
+
+    const cajas = comoLista(buscar(d, ['caja', 'cierrecaja', 'cierredecaja']));
+    const gastos = comoLista(buscar(d, ['gastos', 'gasto']));
+    let pend = [], pag = [], ant = [];
+    const prod = buscar(d, ['productos']);
+    if (esObj(prod)) {
+      pend = comoLista(buscar(prod, ['pendientes']));
+      pag = comoLista(buscar(prod, ['pagados']));
+      ant = comoLista(buscar(prod, ['pagosanteriores']));
+    } else {
+      const todos = comoLista(prod ?? buscar(d, ['proveedores', 'pedidos', 'proveedor']));
+      pend = todos.filter(x => !esPagado(x));
+      pag = todos.filter(esPagado);
+    }
+
+    let html = `<div class="zona-cab"><h3>${esc(fechaLarga(fecha))}</h3></div>`;
+    if (!cajas.length && !gastos.length && !pend.length && !pag.length && !ant.length) {
+      cont.innerHTML = html + vacio('📭', 'No hay registros en este día.');
+      return;
+    }
+
+    const seccion = (titulo, total, margen) =>
+      `<div class="zona-cab" style="margin-top:${margen}px"><h3>${titulo}</h3>${total > 0 ? `<span class="sub">Total ${bs(total)}</span>` : ''}</div>`;
+
+    html += seccion('💵 Caja', 0, 6);
+    html += cajas.length ? cajas.map(tarjetaCaja).join('') : vacio('💵', 'Sin cierre de caja este día.');
+
+    html += seccion('🍔 Gastos', suma(gastos, K_MONTO), 22);
+    html += gastos.length ? gastos.map(tarjetaGasto).join('') : vacio('🍔', 'Sin gastos este día.');
+
+    html += seccion('✅ Productos pagados', suma(pag, K_PRECIO), 22);
+    html += pag.length ? grupoProveedores(pag, { conEstado: false, fechas: [] }) : vacio('✅', 'Ningún producto pagado de este día.');
+
+    html += seccion('💰 Productos pendientes', suma(pend, K_PRECIO), 22);
+    html += pend.length ? grupoProveedores(pend, { conEstado: false, fechas: [] }) : vacio('🎉', 'No quedan productos pendientes de este día.');
+
+    if (ant.length) {
+      html += seccion('🔁 Deudas anteriores pagadas este día', suma(ant, K_PRECIO), 22);
+      html += grupoProveedores(ant, { conEstado: false, fechas: [['fecha', 'Llegó el']] });
+    }
+    cont.innerHTML = html;
+  } catch (e) {
+    if (mio !== tokenResumen) return;
+    cont.innerHTML = falla(e.message, 'reintentar-resumen');
+  }
+}
+
+$('#btn-pendientes').addEventListener('click', cargarPendientes);
+$('#btn-pagados').addEventListener('click', cargarPagados);
+$('#fecha').addEventListener('change', cargarResumen);
+
+document.addEventListener('change', e => {
+  if (e.target && e.target.id === 'dias-pagados') { diasPagados = Number(e.target.value); cargarPagados(); }
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-accion]');
+  if (!b) return;
+  const a = b.dataset.accion;
+  if (a === 'reintentar-pendientes') cargarPendientes();
+  else if (a === 'reintentar-pagados') cargarPagados();
+  else if (a === 'reintentar-resumen') cargarResumen();
+  else if (a === 'ocultar-lista') { tokenLista++; $('#resultado-lista').innerHTML = ''; marcarBoton(''); }
+  else if (a === 'quitar-producto') { b.closest('.item-producto').remove(); renumerarItems(); }
+  else if (a === 'pagar-una') {
+    const fila = Number(b.dataset.fila);
+    const it = pendientesCache.find(x => Number(buscar(x, ['fila'])) === fila);
+    if (it) confirmarPago([it]);
+  } else if (a === 'pagar-todo') {
+    confirmarPago(pendientesCache.filter(x => claveProv(x) === b.dataset.grupo));
+  }
+});
+
+/* =====================================================
+   NAVEGACIÓN ENTRE SECCIONES
+   ===================================================== */
+const VISTAS = ['caja', 'gastos', 'proveedores', 'historial'];
+let historialListo = false;
+
+function ir(nombre) {
+  VISTAS.forEach(v => {
+    $('#vista-' + v).hidden = (v !== nombre);
+    $('#tab-' + v).setAttribute('aria-selected', String(v === nombre));
+  });
+  actualizarFechas();
+  window.scrollTo({ top: 0 });
+  if (nombre === 'historial' && !historialListo) {
+    historialListo = true;
+    cargarResumen();   // muestra el resumen de hoy la primera vez
+  }
+}
+$$('.nav button').forEach(b => b.addEventListener('click', () => ir(b.dataset.vista)));
+
+/* =====================================================
+   PIN DE ACCESO
+   ===================================================== */
+let pinEscrito = '';
+function pintarPuntos() {
+  $$('#puntos i').forEach((p, i) => p.classList.toggle('lleno', i < pinEscrito.length));
+}
+function mostrarPin() {
+  pinEscrito = '';
+  pintarPuntos();
+  $('#pin-msg').textContent = '';
+  $('#pin').classList.add('on');
+  document.body.classList.add('bloqueado');
+}
+function desbloquear() {
+  $('#pin').classList.remove('on');
+  document.body.classList.remove('bloqueado');
+}
+function teclaPin(k) {
+  if (!$('#pin').classList.contains('on')) return;
+  if (k === 'borrar') { pinEscrito = pinEscrito.slice(0, -1); pintarPuntos(); return; }
+  if (pinEscrito.length >= 4) return;
+  pinEscrito += k;
+  $('#pin-msg').textContent = '';
+  pintarPuntos();
+  if (pinEscrito.length === 4) setTimeout(verificarPin, 180);
+}
+function verificarPin() {
+  if (pinEscrito === PIN_CORRECTO) {
+    guardarLocal(CLAVE_PIN, '1');
+    desbloquear();
+  } else {
+    const p = $('#puntos');
+    $('#pin-msg').textContent = 'PIN incorrecto. Intente de nuevo.';
+    p.classList.remove('sacudir'); void p.offsetWidth; p.classList.add('sacudir');
+    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+    pinEscrito = '';
+    setTimeout(pintarPuntos, 350);
+  }
+}
+$('#teclado').addEventListener('click', e => {
+  const b = e.target.closest('button[data-k]');
+  if (b) teclaPin(b.dataset.k);
+});
+document.addEventListener('keydown', e => {
+  if (!$('#pin').classList.contains('on')) return;
+  if (/^\d$/.test(e.key)) teclaPin(e.key);
+  else if (e.key === 'Backspace') teclaPin('borrar');
+});
+$('#btn-bloquear').addEventListener('click', () => { borrarLocal(CLAVE_PIN); mostrarPin(); });
+
+/* =====================================================
+   PWA: manifiesto e íconos generados desde el propio archivo
+   ===================================================== */
+function iniciarPWA() {
+  try {
+    const dibujar = t => {
+      const c = document.createElement('canvas');
+      c.width = c.height = t;
+      const x = c.getContext('2d');
+      x.fillStyle = '#1f6b48';
+      x.fillRect(0, 0, t, t);
+      x.font = Math.round(t * 0.54) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText('🏪', t / 2, t / 2 + t * 0.04);
+      return c.toDataURL('image/png');
+    };
+    const apple = document.createElement('link');
+    apple.rel = 'apple-touch-icon';
+    apple.href = dibujar(180);
+    document.head.appendChild(apple);
+
+    const base = location.origin + location.pathname;
+    const manifiesto = {
+      name: 'Mi Tienda - Registro diario',
+      short_name: 'Mi Tienda',
+      lang: 'es',
+      start_url: base,
+      scope: new URL('./', base).href,
+      display: 'standalone',
+      orientation: 'portrait',
+      background_color: '#f2f7f4',
+      theme_color: '#1f6b48',
+      icons: [
+        { src: dibujar(192), sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+        { src: dibujar(512), sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+      ]
+    };
+    const enlace = document.createElement('link');
+    enlace.rel = 'manifest';
+    enlace.href = URL.createObjectURL(new Blob([JSON.stringify(manifiesto)], { type: 'application/manifest+json' }));
+    document.head.appendChild(enlace);
+  } catch (e) { /* la app funciona igual sin manifiesto */ }
+}
+
+/* =====================================================
+   ARRANQUE
+   ===================================================== */
+(function iniciar() {
+  actualizarFechas();
+  nuevoItem();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { actualizarFechas(); $('#fecha').max = hoy(); }
+  });
+
+  const campoFecha = $('#fecha');
+  campoFecha.value = hoy();
+  campoFecha.max = hoy();
+
+  if (leerLocal(CLAVE_PIN) === '1') desbloquear(); else mostrarPin();
+
+  iniciarPWA();
+})();
+</script>
+</body>
+</html>
